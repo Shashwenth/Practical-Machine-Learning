@@ -1,0 +1,130 @@
+---
+title: "Practical Machine Learning-Final Project"
+output: html_document
+---
+
+# Introduction:
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+## Loading Libraries:
+
+In our project we will be using a varity of machine learning algorithms, eventually from which we will be selecting the most suitable algorithm.
+So,we load all the required libraries for performing various activities
+```{r,cache=TRUE,warning=FALSE}
+library(ranger)
+library(caret)
+library(gbm)
+library(rattle)
+library(rpart)
+```
+
+# Data Processing
+
+Initially we will read the training and testing dataset using the read.csv function and have a peek at them using the str function.
+```{r,cache=TRUE,warning=FALSE}
+training<-read.csv("pml-training.csv")
+testing<-read.csv("pml-testing.csv")
+dim(training)
+dim(testing)
+str(training)
+```
+
+Now since there is a lot of NA's and empty elements we remove the columns that have a lot of these, as they are generally not useful for the prediction model.
+```{r,cache=TRUE,warning=FALSE}
+a<-which(colSums(is.na(training) | training=="")>0.8*ncol(training))
+training1<-training[,-a]
+training1<-training1[,-c(1:7)]
+str(training1)
+```
+
+
+Additionally we make a partition with the initial data set into mytrain and mytest. The mytrain data frame will have 75% of the original data which we will using to train the model with.
+The mytest data frame is used to find out the best model based on their accuracies.
+```{r,cache=TRUE,warning=FALSE}
+training1$classe<-factor(training1$classe)
+intrain<-createDataPartition(training1$classe,p=0.75,list=FALSE)
+mytrain<-training1[intrain,]
+mytest<-training1[-intrain,]
+dim(mytrain)
+```
+
+
+# Building A Prediction Model:
+To predict the outcome, we will use three different methods to model the regression using the mytrain dataset:
+- Random Forests
+- Decision Trees
+- Generalized Boosted Model
+Then, they will be applied to the TestData dataset to compare accuracies. The best model will be used to predict 20 different test cases to answer the quiz questions.
+
+## Cross Validation:
+
+We do cross validation in order to increase the efiiciancy and reduce the effect of overfitting.Here we will use k=5 for each models.
+```{r,cache=TRUE,warning=FALSE}
+trc<-trainControl(method = "cv",number = 5)
+```
+
+## Training Models
+
+First we will be training the mytrain data frame using the decision trees algorithm.We can see the resulting tree in the below diagram.
+```{r,cache=TRUE,warning=FALSE}
+fit1<-train(classe~.,data=mytrain,method="rpart",trControl=trc)
+fancyRpartPlot(fit1$finalModel)
+```
+
+Now we create a prediction model using the random forests algorithm.The ranger function is a faster implementation of the random forest algorithm.
+```{r,cache=TRUE,warning=FALSE}
+fit2<-train(classe~.,data=mytrain,method="ranger",trControl=trc)
+```
+
+Finally we build a model using the boosting algorithm.We set verbose to false in order to prevent the algorithm from printing the whole process.
+```{r,cache=TRUE,warning=FALSE}
+fit3<-train(classe~.,data=mytrain,method="gbm",trControl=trc,verbose=FALSE)
+```
+
+## Finding Accuracy:
+
+Now we finally predict the mytest data frame using all the three
+models and select the best model.
+
+```{r,cache=TRUE,warning=FALSE}
+p1<-predict(fit1,mytest)
+c1<-confusionMatrix(p1,mytest$classe)
+c1
+a1<-c1$overall[1]
+print(a1)
+```
+
+```{r,cache=TRUE,warning=FALSE}
+p2<-predict(fit2,mytest)
+c2<-confusionMatrix(p2,mytest$classe)
+c2
+a2<-c2$overall[1]
+print(a2)
+```
+
+```{r,cache=TRUE,warning=FALSE}
+p3<-predict(fit3,mytest)
+c3<-confusionMatrix(p3,mytest$classe)
+c3
+a3<-c3$overall[1]
+print(a3)
+```
+
+As from the above three confusion matrix's we can clearly say that ,random forests algorithm is the best way in the given case to build a prediction model.
+
+Now we predict the testing data frame using the fit2 model.
+```{r,cache=TRUE,warning=FALSE}
+p4<-predict(fit2,testing)
+p4
+```
+
+Thus we have predicted the classe variable for the testing data set
+
+
+
+
+
+
+
+
